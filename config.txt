@@ -1,0 +1,11 @@
+[pixiv]
+pixiv_id = ***
+password = ***
+
+[download]
+max_threads = 16
+
+[image]
+rank_type = normal
+download_quantity = 100
+download_p = False
