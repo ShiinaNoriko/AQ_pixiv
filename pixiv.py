@@ -1,16 +1,17 @@
-import requests
-import bs4
-import json
-from fake_useragent import UserAgent
-import urllib.request
-import pandas as pd
-import time
-import sqlite3
 import datetime
+import json
+import sqlite3
+import time
+
+import bs4
+import pandas as pd
 import PIL.Image
 import PIL.ImageDraw
 import PIL.ImageFont
+import requests
+from fake_useragent import UserAgent
 from win32.win32crypt import CryptUnprotectData
+
 from settings import *
 
 _rank_page = {
@@ -75,6 +76,10 @@ class Pixiv(object):
                 # 提示用户今日操作已经进行过，无需再次进行
 
     def __login(self):
+        """
+        登陆
+
+        """
         print("正在登陆")
         data = self.session.get(url=self.login_data_url,
                                 headers=self.headers).content.decode("utf8")
@@ -92,6 +97,10 @@ class Pixiv(object):
         print("登陆完毕")
 
     def get_cookie_from_chrome(self, host='.pixiv.net'):
+        """
+        获取chrome的cookies，用于下载第二个排行
+
+        """
         cookiepath=os.environ['LOCALAPPDATA']+r"\Google\Chrome\User Data\Default\Cookies"
         sql="select host_key,name,encrypted_value from cookies where host_key='%s'" % host
         with sqlite3.connect(cookiepath) as conn:
@@ -101,6 +110,10 @@ class Pixiv(object):
         return cookies
         
     def __get_rank_list(self):
+        """
+        获取排行榜
+
+        """
         print("正在拉取排行榜数据")
         count = 1
         pid_list = []
@@ -132,34 +145,42 @@ class Pixiv(object):
         self.profile_download_list = list(zip(pid_rank, pid_profile))
         self.original_download_list = list(
             zip(pid_rank, pid_list, pid_img_count))
-        # print(self.profile_download_list)
-        pid_all = list(zip(pid_rank, pid_title, pid_username, pid_userid))
+        pid_all = list(zip(pid_rank, pid_title, pid_list, pid_username, pid_userid))
         self.pid_all = pid_all
-        # print(pid_all)
         self.image_message_to_csv()
         self.check_csv_list(1)
         return pid_list
 
     def create_today_path(self):
+        """
+        创建今日作品存放的文件夹
+
+        """
         dir_path = os.path.join('Image', RANK_TYPE, self.current_time)
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
 
 
     def image_message_to_csv(self):
-        # dir_path = os.path.join(self.current_time)
-        csv_listname = ['rank', 'title', 'author', 'author_id']
+        """
+        将获取到的信息转化为csv
+        包含排名，标题，作品ID，作者，作者ID
+
+        """
+        csv_listname = ['rank', 'title', 'illust_id', 'author', 'author_id']
         message_csv = pd.DataFrame(columns=csv_listname, data=self.pid_all)
-        # print(message_csv)
         csv_name = os.path.join(
             'Image', RANK_TYPE, self.current_time, self.current_time + '.csv')
         message_csv.to_csv(csv_name, encoding='utf_8_sig', index=False)
 
-    def find_csv_repetition(self):
-        # 找出2个csv中重复的部分，对比文件为最近的2个csv，如文件数不足2个则跳过
-        # 首先获取csv.txt最后一行的数据，找出对应的csv文件并读取，
-        # 之后获取本次使用的csv文件
-        # 判断两次文件是否重复
+    def find_csv_repetition(self): # 功能未实现
+        """
+         找出2个csv中重复的部分，对比文件为最近的2个csv，如文件数不足2个则跳过
+         首先获取csv.txt最后一行的数据，找出对应的csv文件并读取，
+         之后获取本次使用的csv文件
+         判断两次文件是否重复
+
+        """
         print('开始比对两日csv文件')
         last_csv_path = os.path.join(
             self.last_csv_date, self.last_csv_date + '.csv')
@@ -170,6 +191,11 @@ class Pixiv(object):
         df = pd.concat
 
     def get_yesterday(self):
+        """
+
+        获取昨日日期
+
+        """
         yesterday = datetime.date.today() + datetime.timedelta(-1)
         return yesterday
 
@@ -178,6 +204,7 @@ class Pixiv(object):
         # 当传入的数字为0时，功能为读取，一般读取最后一行，用于比对
         # 当传入的数字为1时，功能为写入，写入最新的日期csv
         # 当传入的数字为2时，功能为检查txt文件，一般检查是否为空，用于判断是否需要跳过某些操作
+        # 部分功能未实现
         sysFile_path = os.path.join('sysFile')
         # print(sysFile_path)
         if not os.path.exists(sysFile_path):
@@ -222,8 +249,13 @@ class Pixiv(object):
             pass
 
     def merge_image(self):
+        """
+        修改图片尺寸 ，用于制作缩略图
+
+        """
         tmp_img_path = os.path.join('Cache', 'tmp')  # 每张图片下载下来的缩略图文件夹
         # print(tmp_img_path)
+        null_list = []
         thumbnail_path = os.path.join('Cache', 'thumbnail')  # 处理后缩略图文件夹
         merged_img_path = os.path.join('Cache', 'merged', RANK_TYPE)
         if not os.path.exists(tmp_img_path):
@@ -238,10 +270,22 @@ class Pixiv(object):
             print('目标文件不存在')
             return False
         else:
+            print(len(tmp_list))
+            if len(tmp_list) < 100:
+                for i in range(1, 101):
+                    c = str(i) + '.jpg'
+                    if c not in tmp_list:
+                        print(c)
+                        null_list.append(c)
+            if null_list:
+                for filename in null_list:
+                    image_path = os.path.join('Cache', 'tmp', filename)
+                    img_date = PIL.Image.new('RGB', (240, 320), (125, 125, 125))
+                    img_draw = PIL.ImageDraw.Draw(img_date)
+                    img_date.save(image_path)
+                tmp_list = os.listdir(tmp_img_path)
             for filename in tmp_list:
-                # print(filename)
                 image_path = os.path.join('Cache', 'tmp', filename)
-                # print(image_path)
                 self.reform_image(image_path, filename)
             merge_list = os.listdir(thumbnail_path)
             img_merged = PIL.Image.new(
@@ -286,6 +330,10 @@ class Pixiv(object):
             print('修改后缩略图删除完成')
 
     def reform_image(self, img_path, filename):
+        """
+        修改尺寸代码
+        
+        """
         # 先获取图片长宽，和240与320比较，尽量向符合的部分转换，多余部分用空白补足，居中。
         # 补足空白可以先看是哪部分需要补足，如果是height需要补足，则计算出resize后图片的高度，然后创建2个相同的，高度为需补足高度一半的空白
         # 之后拼接起来，注意图片的高度的奇偶，奇数可以适当调节为偶数，便于空白的增加
