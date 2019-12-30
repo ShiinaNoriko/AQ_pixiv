@@ -1,11 +1,13 @@
-import os
-import requests
 import json
-import time
+import os
 import queue
+import time
 from threading import Thread
+
+import requests
 from fake_useragent import UserAgent
 from requests import exceptions
+
 from settings import *
 
 
@@ -89,6 +91,7 @@ class Download(object):
         self.thread_pool.clear()
 
     def download_original_img(self):
+        
         for i in range(self.max_thread):
             i = Thread(target=self.download_original_thread)
             self.thread_pool.append(i)
@@ -143,9 +146,11 @@ class Download(object):
             info_url = self.img_info_url.format(pid=img_id)
             try:
                 if DOWNLOAD_P is False:
-                    file_name = os.path.join(
+                    file_name1 = os.path.join(
                         'Image', RANK_TYPE, self.current_time, str(img_rank)+'.jpg')
-                    if not os.path.exists(file_name):
+                    file_name2 = os.path.join(
+                        'Image', RANK_TYPE, self.current_time, str(img_rank)+'.png')
+                    if  not (os.path.exists(file_name1) and os.path.exists(file_name2)):
                         res = requests.get(info_url, headers=headers, timeout=5)
                         js = json.loads(res.text)
                         img_url = js["body"]["urls"]["original"]  # 获取到原图的下载地址
@@ -154,8 +159,10 @@ class Download(object):
                 else:
                     if int(img_count) == 1:
                         file_name = os.path.join(
-                            'Image', RANK_TYPE, self.current_time, str(img_rank)+'.jpg')
-                        if not os.path.exists(file_name):
+                            'Image', RANK_TYPE, self.current_time, str(img_rank)+',jpg')
+                        file_name = os.path.join(
+                            'Image', RANK_TYPE, self.current_time, str(img_rank)+'.png')
+                        if not (os.path.exists(file_name1) and os.path.exists(file_name2)):
                             res = requests.get(info_url, headers=headers, timeout=5)
                             js = json.loads(res.text)
                             img_url = js["body"]["urls"]["original"]  # 获取到原图的下载地址
@@ -218,13 +225,14 @@ class Download(object):
         # 两种下载的referer均不同
         # print('开始下载')
         len_count = 0
+        img_type = img_url[-4:]
         if self.download_type == 0:  # 下载原图
             if img_p == 0:
                 file_name = os.path.join(
-                    'Image', RANK_TYPE, self.current_time, str(img_rank)+'.jpg')
+                    'Image', RANK_TYPE, self.current_time, str(img_rank)+img_type)
             else:
                 file_name = os.path.join('Image', RANK_TYPE, self.current_time, str(
-                    img_rank), str(img_rank)+'_'+str(img_p)+'.jpg')
+                    img_rank), str(img_rank)+'_'+str(img_p)+img_type)
             if not os.path.exists(file_name):
                 try:
                     headers = self.headers.copy()
@@ -238,7 +246,7 @@ class Download(object):
                         print('文件不存在')
                         raise RuntimeError('文件不存在')
                     img_size = int(img_result.headers['content-length'])
-                    print('图片大小为 ', img_size, ' bytes')
+                    print('图片大小为 ', img_size/8000, ' bytes')
                     with open(file_name, "wb+") as fp:
                         for chunk in img_result.iter_content(chunk_size=1024):
                             fp.write(chunk)
@@ -265,7 +273,7 @@ class Download(object):
 
                 # print('下载进度 ', round((len_count/img_size*100), 2), '%',end=end_str)
         else:  # 下载缩略图
-            file_name = os.path.join('Cache', 'tmp', str(img_rank)+'.jpg')
+            file_name = os.path.join('Cache', 'tmp', str(img_rank)+img_type)
             if not os.path.exists(file_name):
                 # while True:
                 try:
@@ -281,7 +289,7 @@ class Download(object):
                         # break
 
                     img_size = int(img_result.headers['content-length'])
-                    print('图片大小为 ', img_size, ' bytes')
+                    print('图片大小为 ', img_size/8000, ' bytes')
                     with open(file_name, "wb+") as fp:
                         for chunk in img_result.iter_content(chunk_size=1024):
                             fp.write(chunk)
@@ -308,13 +316,14 @@ class Download(object):
                 pass
 
     def __redownload(self, img_rank, img_url, img_id=0, img_p=0, img_count=0):
+        img_type = img_url[-4:]
         if self.download_type == 0:  # 下载原图
             if img_p == 0:
                 file_name = os.path.join(
-                    'Image', RANK_TYPE, self.current_time, str(img_rank)+'.jpg')
+                    'Image', RANK_TYPE, self.current_time, str(img_rank)+img_type)
             else:
                 file_name = os.path.join('Image', RANK_TYPE, self.current_time, str(
-                    img_rank), str(img_rank)+'_'+str(img_p)+'.jpg')
+                    img_rank), str(img_rank)+'_'+str(img_p)+img_type)
             if os.path.exists(file_name):
                 os.remove(file_name)
             try:
@@ -329,7 +338,7 @@ class Download(object):
                     print('文件不存在')
                     raise RuntimeError('文件不存在')
                 img_size = int(img_result.headers['content-length'])
-                print('图片大小为 ', img_size, ' bytes')
+                print('图片大小为 ', img_size/8000, ' bytes')
                 with open(file_name, "wb+") as fp:
                     for chunk in img_result.iter_content(chunk_size=1024):
                         fp.write(chunk)
@@ -353,7 +362,7 @@ class Download(object):
                 # fp.close()
         else:
             file_name = os.path.join(
-                    'Cache', 'tmp', str(img_rank)+'.jpg')
+                    'Cache', 'tmp', str(img_rank)+img_type)
             if os.path.exists(file_name):
                 os.remove(file_name)
             try:
@@ -368,7 +377,7 @@ class Download(object):
                     print('访问失败 返回代码为 ', img_result.status_code)
                     # break
                 img_size = int(img_result.headers['content-length'])
-                print('图片大小为 ', img_size, ' bytes')
+                print('图片大小为 ', img_size/8000, ' bytes')
                 with open(file_name, "wb+") as fp:
                     for chunk in img_result.iter_content(chunk_size=1024):
                         fp.write(chunk)
