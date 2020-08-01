@@ -22,5 +22,3 @@ You'd better not close the program after starting it until finish download all f
 if this happened, delete today's file.
 For example,if you are downloading 2019-09-09 normal pictures and meet this problem,
 you should delete \Image\normal\2019-09-09 ,and the line in \sysFile\csv.txt '2019-09-09',make sure the last line is \n
-
-Any other problem can send e-mail to me : 774178014@qq.com
